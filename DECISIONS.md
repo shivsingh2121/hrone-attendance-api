@@ -1,7 +1,11 @@
-# DECISIONS.md  (about 150-200 words in total - plain language, your own words)
+# DECISIONS.md
 
-1. **Indexes.** Which indexes did you create, and which query or guarantee does each one serve? Which one did you consider and reject?
-2. **Punch-in race.** Two identical punch-in requests arrive at the same instant. Walk through exactly what happens in your code.
-3. **Ties.** Two employees are tied on late minutes at the cutoff of `limit`. What does your leaderboard return, and why?
-4. **Headcount.** How does your department summary make sure employees with zero logs are counted?
-5. **One thing you would change** if this had to serve 100x the data.
+1. **Indexes.** `employees`: unique `emp_code`, so a code cannot be saved twice; `department + emp_code` for the department filter and trend; `joined_on` for the summary headcount. `attendance_logs`: unique `emp_code + date`, so one employee has one record per day (it also serves every lookup for one employee); `date + emp_code` for the list sort and the leaderboard month; `status + date + emp_code` for the status filter. I rejected an `emp_code + punch_in` index for punch-out, because the latest date is always the latest punch-in.
+
+2. **Punch-in race.** Both requests get the same date and call `insert_one` directly. I do not check first and then insert. MongoDB's unique index saves only the first one. The second gets `DuplicateKeyError`, and I return 409.
+
+3. **Ties.** I use `$rank`, which gives the same rank to equal totals and skips the next number (1, 2, 2, 4). I apply `limit` after ranking, so everyone tied at the cutoff is returned, sorted by `emp_code`.
+
+4. **Headcount.** The pipeline starts from `employees`, not from the logs. `$unwind` keeps employees with no logs, so they are counted.
+
+5. **100x data.** I would keep a small daily summary per department, updated on every write, so analytics do not scan all logs.

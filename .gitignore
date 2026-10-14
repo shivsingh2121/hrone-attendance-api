@@ -3,3 +3,7 @@
 __pycache__/
 *.pyc
 PROBLEM_STATEMENT.docx
+check_parta.py
+check_partb.py
+check_analytics.py
+seed_test_data.py
